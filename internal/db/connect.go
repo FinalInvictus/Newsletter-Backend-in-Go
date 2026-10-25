@@ -15,6 +15,7 @@ func Connect(databaseURL string) (*gorm.DB, error) {
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
+	//This is for orm 
 	connection, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{
 		TranslateError: true,
 		Logger:         logger.Default.LogMode(logger.Warn),
