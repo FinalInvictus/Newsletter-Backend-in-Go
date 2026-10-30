@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
+	"time"
 )
 
 type Comment struct {
@@ -51,6 +51,7 @@ type Subscriber struct {
 
 type JSONB json.RawMessage
 
+// Value validates the JSON document and exposes it in a form accepted by the SQL driver.
 func (j JSONB) Value() (driver.Value, error) {
 	if len(j) == 0 || !json.Valid(j) {
 		return nil, errors.New("JSONB must contain valid JSON")
@@ -58,6 +59,7 @@ func (j JSONB) Value() (driver.Value, error) {
 	return string(j), nil
 }
 
+// Scan copies a PostgreSQL JSONB value into the model's raw JSON representation.
 func (j *JSONB) Scan(value any) error {
 	switch v := value.(type) {
 	case []byte:
@@ -72,8 +74,10 @@ func (j *JSONB) Scan(value any) error {
 	return nil
 }
 
+// GormDataType tells GORM to map this custom value to PostgreSQL's JSONB column type.
 func (JSONB) GormDataType() string { return "jsonb" }
 
+// MarshalJSON returns the stored document as JSON for API responses.
 func (j JSONB) MarshalJSON() ([]byte, error) {
 	if len(j) == 0 {
 		return []byte("null"), nil
@@ -84,6 +88,7 @@ func (j JSONB) MarshalJSON() ([]byte, error) {
 	return j, nil
 }
 
+// UnmarshalJSON stores a validated JSON document in the model's raw message.
 func (j *JSONB) UnmarshalJSON(data []byte) error {
 	if !json.Valid(data) {
 		return errors.New("invalid JSON document")
@@ -92,6 +97,7 @@ func (j *JSONB) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// BeforeCreate assigns an application-generated UUID when a category has no ID yet.
 func (c *Category) BeforeCreate(_ *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
@@ -99,6 +105,7 @@ func (c *Category) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+// BeforeCreate assigns an application-generated UUID when an article has no ID yet.
 func (a *Article) BeforeCreate(_ *gorm.DB) error {
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
@@ -106,6 +113,7 @@ func (a *Article) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+// BeforeCreate assigns an application-generated UUID when a subscriber has no ID yet.
 func (s *Subscriber) BeforeCreate(_ *gorm.DB) error {
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
@@ -113,6 +121,7 @@ func (s *Subscriber) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+// BeforeCreate assigns an application-generated UUID when a comment has no ID yet.
 func (c *Comment) BeforeCreate(_ *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()

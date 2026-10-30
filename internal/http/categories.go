@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	dbmodel "newsletter-backend/internal/db"
+	dbmodel "github.com/FinalInvictus/Newsletter-Backend-in-Go.git/internal/db"
 )
 
 type categoryInput struct {
@@ -12,11 +12,13 @@ type categoryInput struct {
 	Slug *string `json:"slug"`
 }
 
+// RegisterCategoryRoutes binds category listing and creation endpoints.
 func (h *Handler) RegisterCategoryRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /categories", h.listCategories)
 	mux.HandleFunc("POST /categories", h.createCategory)
 }
 
+// listCategories returns categories in name order for display and article assignment.
 func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 	var categories []dbmodel.Category
 	if err := h.DB.WithContext(r.Context()).Order("name ASC").Find(&categories).Error; err != nil {
@@ -26,6 +28,7 @@ func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, categories)
 }
 
+// createCategory validates and persists one new editorial category.
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	var input categoryInput
 	if !decodeJSON(w, r, &input) {

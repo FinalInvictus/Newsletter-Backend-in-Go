@@ -9,26 +9,27 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
-	dbmodel "newsletter-backend/internal/db"
+	dbmodel "github.com/FinalInvictus/Newsletter-Backend-in-Go.git/internal/db"
 )
 
 type articleInput struct {
-	Slug string `json:"slug"`
-	Title string `json:"title"`
-	Description string `json:"description"`
-	Contents json.RawMessage `json:"contents"`
-	CoverImage *string `json:"cover_image"`
-	Tags []string `json:"tags"`
-	CategoryID *uuid.UUID `json:"category_id"`
-	Status string `json:"status"`
-	Type string `json:"type"`
-	EstimatedReadTime int `json:"estimated_read_time"`
+	Slug              string          `json:"slug"`
+	Title             string          `json:"title"`
+	Description       string          `json:"description"`
+	Contents          json.RawMessage `json:"contents"`
+	CoverImage        *string         `json:"cover_image"`
+	Tags              []string        `json:"tags"`
+	CategoryID        *uuid.UUID      `json:"category_id"`
+	Status            string          `json:"status"`
+	Type              string          `json:"type"`
+	EstimatedReadTime int             `json:"estimated_read_time"`
 }
 
-func validateArticle(input articleInput)string{
-	for _,field := range []struct{ value, name string }{
+// validateArticle checks required fields and supported values before an article reaches PostgreSQL.
+func validateArticle(input articleInput) string {
+	for _, field := range []struct{ value, name string }{
 		{input.Slug, "slug"}, {input.Title, "title"}, {input.Description, "description"},
-		{input.Status, "status"}, {input.Type,"type"},
+		{input.Status, "status"}, {input.Type, "type"},
 	} {
 		if message := requireText(field.value, field.name); message != "" {
 			return message
@@ -43,9 +44,13 @@ func validateArticle(input articleInput)string{
 	if input.EstimatedReadTime <= 0 {
 		return "estimated_read_time must be greater than zero"
 	}
+	if input.Type != "article" && input.Type != "letter" && input.Type != "note" {
+		return "type must be article, letter, or note"
+	}
 	return ""
 }
 
+// RegisterArticleRoutes binds public article reads and editorial create, update, and delete endpoints.
 func (h *Handler) RegisterArticleRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /articles", h.listPublishedArticles)
 	mux.HandleFunc("GET /articles/all", h.listAllArticles)
@@ -55,6 +60,7 @@ func (h *Handler) RegisterArticleRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /articles/{id}", h.deleteArticle)
 }
 
+// createArticle validates and stores a new article, assigning its first publication timestamp when needed.
 func (h *Handler) createArticle(w http.ResponseWriter, r *http.Request) {
 	var input articleInput
 	if !decodeJSON(w, r, &input) {
@@ -85,6 +91,7 @@ func (h *Handler) createArticle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, article)
 }
 
+// updateArticle replaces an existing article's editable fields and records its first publication time.
 func (h *Handler) updateArticle(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseUUID(r.PathValue("id"))
 	if !ok {
@@ -123,6 +130,8 @@ func (h *Handler) updateArticle(w http.ResponseWriter, r *http.Request) {
 	if previousStatus != "published" && article.Status == "published" {
 		now := time.Now().UTC()
 		article.PublishedAt = &now
+	} else if article.Status != "published" {
+		article.PublishedAt = nil
 	}
 	if err := ctxDB.Save(&article).Error; err != nil {
 		writeDBError(w, err)
@@ -131,6 +140,7 @@ func (h *Handler) updateArticle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, article)
 }
 
+// deleteArticle removes the requested article and reports when its identifier does not exist.
 func (h *Handler) deleteArticle(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseUUID(r.PathValue("id"))
 	if !ok {
@@ -149,15 +159,17 @@ func (h *Handler) deleteArticle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// listPublishedArticles returns only reader-visible articles, newest first.
 func (h *Handler) listPublishedArticles(w http.ResponseWriter, r *http.Request) {
 	var articles []dbmodel.Article
 	if err := h.DB.WithContext(r.Context()).Where("status = ?", "published").Order("created_at DESC").Find(&articles).Error; err != nil {
-		writeDBError(w,err)
+		writeDBError(w, err)
 		return
 	}
-	writeJSON(w,http.StatusOK,articles)
+	writeJSON(w, http.StatusOK, articles)
 }
 
+// listAllArticles returns every article for the editorial interface, newest first.
 func (h *Handler) listAllArticles(w http.ResponseWriter, r *http.Request) {
 	var articles []dbmodel.Article
 	if err := h.DB.WithContext(r.Context()).Order("created_at DESC").Find(&articles).Error; err != nil {
@@ -167,9 +179,10 @@ func (h *Handler) listAllArticles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, articles)
 }
 
+// getArticleBySlug finds one article by its public, human-readable URL slug.
 func (h *Handler) getArticleBySlug(w http.ResponseWriter, r *http.Request) {
 	var article dbmodel.Article
-	err := h.DB.WithContext(r.Context()).Where("slug = ?", r.PathValue("slug")).First(&article).Error
+	err := h.DB.WithContext(r.Context()).Where("slug = ? AND status = ?", r.PathValue("slug"), "published").First(&article).Error
 	if err != nil {
 		writeDBError(w, err)
 		return

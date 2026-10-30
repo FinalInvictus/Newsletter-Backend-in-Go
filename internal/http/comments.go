@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	dbmodel "newsletter-backend/internal/db"
+	dbmodel "github.com/FinalInvictus/Newsletter-Backend-in-Go.git/internal/db"
 )
 
 type commentInput struct {
@@ -16,11 +15,13 @@ type commentInput struct {
 	Content    string  `json:"content"`
 }
 
+// RegisterCommentRoutes binds comment listing and creation beneath an article resource.
 func (h *Handler) RegisterCommentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /articles/{id}/comments", h.listComments)
 	mux.HandleFunc("POST /articles/{id}/comments", h.createComment)
 }
 
+// listComments returns a conversation in chronological order for an article UUID.
 func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
 	articleID, ok := parseUUID(r.PathValue("id"))
 	if !ok {
@@ -36,6 +37,7 @@ func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, comments)
 }
 
+// createComment verifies the parent article and adds a reader comment to its conversation.
 func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 	articleID, ok := parseUUID(r.PathValue("id"))
 	if !ok {

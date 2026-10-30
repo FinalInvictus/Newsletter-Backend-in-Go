@@ -7,15 +7,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
 
-	dbmodel "newsletter-backend/internal/db"
-	httpapi "newsletter-backend/internal/http"
+	dbmodel "github.com/FinalInvictus/Newsletter-Backend-in-Go.git/internal/db"
+	httpapi "github.com/FinalInvictus/Newsletter-Backend-in-Go.git/internal/http"
 )
 
+// main loads configuration, verifies PostgreSQL, registers the API and frontend, and gracefully shuts down the server.
 func main() {
 	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.Printf("load .env: %v", err)
@@ -46,6 +48,10 @@ func main() {
 	}()
 
 	mux := http.NewServeMux()
+	// Serve the bundled frontend for browser routes while leaving API routes to their explicit handlers.
+	staticFiles := http.FileServer(http.Dir(filepath.Join("web")))
+	mux.Handle("GET /", staticFiles)
+	// Report process health only when the database is reachable.
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -73,7 +79,7 @@ func main() {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	
+
 	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

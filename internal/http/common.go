@@ -20,6 +20,7 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+// writeJSON encodes a response with the shared JSON content type and HTTP status.
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
@@ -30,10 +31,12 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	}
 }
 
+// writeError returns a consistent JSON error payload to API clients.
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, errorResponse{Error: message})
 }
 
+// decodeJSON enforces a one-megabyte limit and accepts exactly one JSON value.
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MiB request limit.
 	decoder := json.NewDecoder(r.Body)
@@ -49,11 +52,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
+// parseUUID converts a path parameter to a UUID and reports whether it was valid.
 func parseUUID(value string) (uuid.UUID, bool) {
 	parsed, err := uuid.Parse(value)
 	return parsed, err == nil
 }
 
+// requireText returns a field-specific validation message when text is blank.
 func requireText(value, field string) string {
 	if strings.TrimSpace(value) == "" {
 		return field + " is required"
@@ -61,7 +66,7 @@ func requireText(value, field string) string {
 	return ""
 }
 
-// writeDBError translatees any GORM error to stable HTTP requests without leaking any SQL data
+// writeDBError maps GORM failures to stable HTTP responses without exposing SQL details.
 func writeDBError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):

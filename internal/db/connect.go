@@ -9,19 +9,19 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Connect opens GORMs PostgreSQL connection
+// Connect opens a PostgreSQL connection through GORM and configures its connection pool.
 // The caller should ping the DB before serving any traffic
 func Connect(databaseURL string) (*gorm.DB, error) {
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
-	//This is for orm 
+	//This is for orm
 	connection, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{
 		TranslateError: true,
 		Logger:         logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
-		return nil,fmt.Errorf("open PostgreSQL connection: %w", err)
+		return nil, fmt.Errorf("open PostgreSQL connection: %w", err)
 	}
 	sqlDB, err := connection.DB()
 	if err != nil {
